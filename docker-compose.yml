@@ -1,0 +1,58 @@
+volumes:
+  lldap_data:
+    driver: local
+  ssp_data:
+    driver: local
+
+services:
+  lldap:
+    image: nitnelave/lldap:stable
+    restart: always
+    container_name: ldap
+    networks:
+      - proxy
+    user: "0:0"
+    volumes:
+      - "lldap_data:/data"
+    environment:
+      - LLDAP_JWT_SECRET=$LLDAP_JWT_SECRET
+      - LLDAP_LDAP_USER_PASS=$LLDAP_LDAP_USER_PASS
+      - LLDAP_LDAP_BASE_DN=$LLDAP_LDAP_BASE_DN
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ldap.entrypoints=http"
+      - "traefik.http.routers.ldap.rule=Host(`ldap.selfhost.ar`)"
+      - "traefik.http.middlewares.ldap-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.ldap.middlewares=ldap-https-redirect"
+      - "traefik.http.routers.ldap-secure.entrypoints=https"
+      - "traefik.http.routers.ldap-secure.rule=Host(`ldap.selfhost.ar`)"
+      - "traefik.http.routers.ldap-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.ldap-secure.tls=true"
+      - "traefik.http.routers.ldap-secure.service=ldap"
+      - "traefik.http.services.ldap.loadbalancer.server.port=17170"
+      - "traefik.docker.network=proxy"
+  ssp:
+    image: docker.io/ltbproject/self-service-password:latest
+    restart: always
+    container_name: ssp
+    networks:
+      - proxy
+    volumes:
+      - "ssp_data:/var/www/conf"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ssp.entrypoints=http"
+      - "traefik.http.routers.ssp.rule=Host(`ssp.selfhost.ar`)"
+      - "traefik.http.middlewares.ssp-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.ssp.middlewares=ssp-https-redirect"
+      - "traefik.http.routers.ssp-secure.entrypoints=https"
+      - "traefik.http.routers.ssp-secure.rule=Host(`ssp.selfhost.ar`)"
+      - "traefik.http.routers.ssp-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.ssp-secure.tls=true"
+      - "traefik.http.routers.ssp-secure.service=ssp"
+      - "traefik.http.services.ssp.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy"
+      
+networks:
+  proxy:
+    external: true
